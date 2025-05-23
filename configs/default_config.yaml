@@ -1,0 +1,94 @@
+# Default configuration for Brain-to-Text Model
+
+# Data configuration
+data:
+  data_root: "/path/to/MEG-MASC/dataset"
+  subjects: null  # null for all subjects, or list like ["sub-01", "sub-02"]
+  sessions: null  # null for all sessions
+  tasks: null     # null for all tasks, or list like [0, 1, 2, 3]
+  sampling_rate: 1000
+  segment_length: 2.0  # seconds
+  overlap: 0.5  # 50% overlap
+  lowpass: 100.0
+  highpass: 0.1
+  normalize: true
+  cache_dir: "./cache"
+  num_workers: 4
+
+# Model configuration
+model:
+  # MEG/EEG encoder
+  n_channels: 208  # Number of MEG channels
+  eeg_hidden_dim: 768
+  num_encoder_layers: 12
+  
+  # RVQ configuration
+  n_codebooks: 8
+  codebook_size: 8192
+  codebook_dim: 256
+  
+  # LLM configuration
+  llm_model_name: "meta-llama/Llama-2-7b-chat-hf"
+  freeze_llm_initially: true
+  use_lora: true
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.1
+  
+  # General
+  dropout: 0.1
+  max_seq_length: 2048
+  max_text_length: 256
+  
+  # Optional: checkpoint to load
+  checkpoint_path: null
+
+# Tokenizer configuration
+tokenizer:
+  use_pretrained: true
+  model_name: "meta-llama/Llama-2-7b-chat-hf"
+  # Alternative: use custom tokenizer
+  # use_pretrained: false
+  # path: "./tokenizer"
+
+# Training configuration
+training:
+  # Training mode specific
+  batch_size: 16
+  gradient_clip: 1.0
+  accumulation_steps: 4
+  mixed_precision: true
+  
+  # Learning schedule
+  num_epochs: 10
+  max_steps: null  # Set to override num_epochs
+  warmup_steps: 1000
+  
+  # Multi-phase training steps
+  phase1_steps: 50000
+  phase2_steps: 30000
+  phase3_steps: 100000
+  phase4_steps: 50000
+  
+  # Distillation parameters
+  distill_temperature: 3.0
+  distill_alpha: 0.7
+  
+  # Checkpointing
+  save_steps: 1000
+  eval_steps: 500
+  logging_steps: 100
+  
+  # Output
+  output_dir: "./output"
+  device: "cuda"
+  log_wandb: true
+
+# Inference configuration
+inference:
+  max_length: 256
+  temperature: 0.8
+  top_k: 50
+  top_p: 0.95
+  num_beams: 1
+  do_sample: true
