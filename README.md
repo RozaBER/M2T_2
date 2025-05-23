@@ -108,6 +108,7 @@ The multi-phase training approach consists of:
 
 ## Project Structure
 
+
 ```
 ├── src/
 │   ├── models/
@@ -125,9 +126,6 @@ The multi-phase training approach consists of:
 │       └── distillation.py     # Knowledge distillation
 ├── configs/
 │   └── default_config.yaml     # Configuration file
-├── report/
-│   ├── main.tex               # Academic paper
-│   └── references.bib         # Bibliography
 ├── train.py                   # Training script
 ├── inference.py               # Inference script
 ├── requirements.txt           # Dependencies
