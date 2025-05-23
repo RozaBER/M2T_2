@@ -13,7 +13,7 @@ The model architecture consists of:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/brain-to-text-model.git
+git clone https://github.com/RozaBER/Large-Brain-to-Text-Model.git
 cd brain-to-text-model
 
 # Create a virtual environment
@@ -134,32 +134,7 @@ The multi-phase training approach consists of:
 └── README.md                  # This file
 ```
 
-## Performance
 
-On the MEG-MASC test set:
-- BLEU-4: 18.7
-- ROUGE-L: 42.6
-- BERTScore: 0.71
-- Word Error Rate: 58.3%
-
-## Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@article{yourlastname2024brain,
-  title={Large Brain-to-Text Model with MEG Encoder and LLaVA-Style Architecture},
-  author={Your Name},
-  journal={arXiv preprint arXiv:2024.xxxxx},
-  year={2024}
-}
-```
-
-## Acknowledgments
-
-- MEG-MASC dataset authors for providing the data
-- LLaMA team for the pre-trained language model
-- LLaVA authors for the multimodal architecture inspiration
 
 ## License
 
