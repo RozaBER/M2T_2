@@ -4,7 +4,7 @@ EEG Encoder with CNN + Transformer architecture for Brain-to-Text Model
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict
 import math
 
 
@@ -243,3 +243,61 @@ class EEGEncoder(nn.Module):
             embeddings.append(segment_embedding)
         
         return torch.stack(embeddings, dim=1)
+    
+    def evaluate_generation_quality(self, 
+                                  eeg_inputs: torch.Tensor,
+                                  reference_texts: List[str],
+                                  model,
+                                  tokenizer,
+                                  metrics_evaluator,
+                                  generation_config: Optional[dict] = None) -> Dict[str, float]:
+        """
+        Evaluate encoder output quality using text generation metrics
+        
+        Args:
+            eeg_inputs: Brain signal inputs [batch, channels, time]
+            reference_texts: Ground truth texts
+            model: Full brain-to-text model
+            tokenizer: Text tokenizer
+            metrics_evaluator: EncoderEvaluationMetrics instance
+            generation_config: Optional generation configuration
+            
+        Returns:
+            Dictionary of evaluation metrics
+        """
+        self.eval()
+        model.eval()
+        
+        with torch.no_grad():
+            # Encode EEG inputs
+            encoded_features = self.forward(eeg_inputs)
+            
+            # Generate text predictions using full model
+            if hasattr(model, 'generate_from_encoded'):
+                # If model has direct method to generate from encoded features
+                generated_ids = model.generate_from_encoded(
+                    encoded_features,
+                    **(generation_config or {})
+                )
+            else:
+                # Standard generation through full model
+                generated_ids = model.generate(
+                    eeg_inputs,
+                    **(generation_config or {})
+                )
+            
+            # Decode predictions
+            predictions = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+            
+            # Clean up predictions and references
+            predictions = [pred.strip() for pred in predictions]
+            references = [ref.strip() for ref in reference_texts]
+            
+            # Compute metrics
+            metrics = metrics_evaluator.compute_all_metrics(predictions, references)
+            
+            # Add additional encoder-specific metrics
+            metrics['encoder_output_shape'] = list(encoded_features.shape)
+            metrics['mean_feature_norm'] = encoded_features.norm(dim=-1).mean().item()
+            
+            return metrics

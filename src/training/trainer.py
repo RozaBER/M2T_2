@@ -13,6 +13,8 @@ import wandb
 from pathlib import Path
 import json
 from datetime import datetime
+from src.evaluation.metrics import EncoderEvaluationMetrics
+from src.evaluation.encoder_evaluator import EncoderEvaluator
 
 
 class BrainToTextTrainer:
@@ -38,7 +40,9 @@ class BrainToTextTrainer:
                  max_steps: Optional[int] = None,
                  num_epochs: Optional[int] = None,
                  warmup_steps: int = 1000,
-                 eval_metric: str = 'loss'):
+                 eval_metric: str = 'loss',
+                 compute_generation_metrics: bool = False,
+                 tokenizer = None):
         """
         Initialize trainer
         
@@ -61,6 +65,8 @@ class BrainToTextTrainer:
             num_epochs: Number of epochs (ignored if max_steps set)
             warmup_steps: Number of warmup steps
             eval_metric: Metric to use for best model selection
+            compute_generation_metrics: Whether to compute ROUGE/BLEU metrics
+            tokenizer: Tokenizer for generation metrics
         """
         self.model = model.to(device)
         self.train_dataloader = train_dataloader
@@ -80,6 +86,19 @@ class BrainToTextTrainer:
         self.num_epochs = num_epochs
         self.warmup_steps = warmup_steps
         self.eval_metric = eval_metric
+        self.compute_generation_metrics = compute_generation_metrics
+        self.tokenizer = tokenizer
+        
+        # Initialize evaluator if generation metrics requested
+        if self.compute_generation_metrics:
+            if tokenizer is None:
+                raise ValueError("Tokenizer required for generation metrics")
+            self.evaluator = EncoderEvaluator(
+                encoder=self.model.encoder if hasattr(self.model, 'encoder') else None,
+                full_model=self.model,
+                tokenizer=tokenizer,
+                device=device
+            )
         
         # Initialize optimizer
         if optimizer is None:
@@ -291,11 +310,73 @@ class BrainToTextTrainer:
         
         self.model.train()
         
-        return {
+        metrics = {
             'loss': total_loss / num_batches,
             'lm_loss': total_lm_loss / num_batches,
             'vq_loss': total_vq_loss / num_batches
         }
+        
+        # Compute generation metrics if requested
+        if self.compute_generation_metrics and hasattr(self, 'evaluator'):
+            print("Computing generation metrics...")
+            generation_metrics = self.evaluate_with_generation_metrics(limit_batches=5)
+            metrics.update(generation_metrics)
+        
+        return metrics
+    
+    def evaluate_with_generation_metrics(self, limit_batches: Optional[int] = None) -> Dict[str, float]:
+        """
+        Extended evaluation with text generation metrics
+        
+        Args:
+            limit_batches: Limit number of batches to evaluate (for speed)
+            
+        Returns:
+            Dictionary of generation metrics
+        """
+        if not hasattr(self, 'evaluator'):
+            return {}
+        
+        self.model.eval()
+        
+        all_predictions = []
+        all_references = []
+        batch_count = 0
+        
+        with torch.no_grad():
+            for batch in tqdm(self.val_dataloader, desc="Computing generation metrics"):
+                if limit_batches and batch_count >= limit_batches:
+                    break
+                
+                # Move batch to device
+                batch = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v 
+                        for k, v in batch.items()}
+                
+                # Get EEG inputs and reference texts
+                eeg_inputs = batch.get('eeg', batch.get('input'))
+                reference_texts = batch.get('text', batch.get('target_text', []))
+                
+                if eeg_inputs is None or not reference_texts:
+                    continue
+                
+                # Evaluate batch
+                batch_results = self.evaluator.evaluate_batch(eeg_inputs, reference_texts)
+                all_predictions.extend(batch_results['predictions'])
+                all_references.extend(reference_texts)
+                
+                batch_count += 1
+        
+        # Compute overall metrics
+        if all_predictions and all_references:
+            metrics = self.evaluator.metrics_evaluator.compute_all_metrics(
+                all_predictions, all_references
+            )
+            
+            # Prefix metrics with 'gen_' to distinguish from loss metrics
+            return {f'gen_{k}': v for k, v in metrics.items()}
+        
+        self.model.train()
+        return {}
     
     def _is_better_metric(self, metrics: Dict[str, float]) -> bool:
         """Check if current metrics are better than best"""

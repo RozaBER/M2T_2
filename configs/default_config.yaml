@@ -2,7 +2,7 @@
 
 # Data configuration
 data:
-  data_root: "/path/to/MEG-MASC/dataset"
+  data_root: "\\\\wsl.localhost\\Ubuntu\\home\\bruce\\projects\\data\\MASC-MEG"
   subjects: null  # null for all subjects, or list like ["sub-01", "sub-02"]
   sessions: null  # null for all sessions
   tasks: null     # null for all tasks, or list like [0, 1, 2, 3]
@@ -28,7 +28,7 @@ model:
   codebook_dim: 256
   
   # LLM configuration
-  llm_model_name: "meta-llama/Llama-2-7b-chat-hf"
+  llm_model_name: "gpt2"
   freeze_llm_initially: true
   use_lora: true
   lora_r: 8
@@ -46,7 +46,7 @@ model:
 # Tokenizer configuration
 tokenizer:
   use_pretrained: true
-  model_name: "meta-llama/Llama-2-7b-chat-hf"
+  model_name: "gpt2"
   # Alternative: use custom tokenizer
   # use_pretrained: false
   # path: "./tokenizer"
@@ -83,6 +83,25 @@ training:
   output_dir: "./output"
   device: "cuda"
   log_wandb: true
+
+# Evaluation configuration
+evaluation:
+  compute_generation_metrics: true
+  metrics:
+    - rouge  # ROUGE-1, ROUGE-2, ROUGE-L
+    - bleu   # BLEU-1 through BLEU-4
+  
+  generation_params:
+    max_length: 128
+    num_beams: 4
+    temperature: 0.7
+    top_p: 0.9
+    do_sample: false
+    early_stopping: true
+  
+  evaluation_frequency: 5  # Evaluate every N epochs
+  save_best_by_metric: "gen_rouge-l"  # Metric for model selection
+  limit_eval_batches: 10  # Limit batches for faster evaluation during training
 
 # Inference configuration
 inference:
