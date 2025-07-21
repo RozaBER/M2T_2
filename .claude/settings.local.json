@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(chmod:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(python3:*)",
+      "Bash(/home/zshao/.conda/envs/m2t/bin/python run_training.py)",
+      "Bash(/home/zshao/.conda/envs/m2t/bin/python test_training.py)",
+      "Bash(/home/zshao/.conda/envs/m2t/bin/python -c \"\nimport torch\nprint(f''PyTorch version: {torch.__version__}'')\nprint(f''CUDA available: {torch.cuda.is_available()}'')\nprint(f''CUDA version: {torch.version.cuda}'')\nprint(f''Device count: {torch.cuda.device_count()}'')\n\")",
+      "Bash(/home/zshao/.conda/envs/m2t/bin/python debug_training.py)",
+      "Bash(/home/zshao/.conda/envs/m2t/bin/python -c \"import sys; sys.path.append(''.''); from src.models.full_model import BrainToTextModel; print(''Import successful'')\")",
+      "Bash(timeout:*)",
+      "Bash(conda activate:*)"
+    ],
+    "deny": []
+  }
+}

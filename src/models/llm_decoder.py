@@ -284,6 +284,7 @@ class BrainToTextLLM(PreTrainedModel):
     def __init__(self, config: BrainToTextConfig):
         super().__init__(config)
         self.padding_idx = 0
+        self.gradient_checkpointing = False
         
         # Text token embeddings
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
@@ -312,6 +313,10 @@ class BrainToTextLLM(PreTrainedModel):
         
     def set_input_embeddings(self, value):
         self.embed_tokens = value
+    
+    def _set_gradient_checkpointing(self, enable: bool = True, gradient_checkpointing_func=None):
+        """Enable or disable gradient checkpointing for the model."""
+        self.gradient_checkpointing = enable
         
     def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
         # Create causal mask
@@ -420,6 +425,14 @@ class BrainToTextLLM(PreTrainedModel):
                             dtype=attention_mask.dtype, device=attention_mask.device
                         )
                         attention_mask = torch.cat([eeg_mask, attention_mask], dim=1)
+                    
+                    # Update labels if provided (pad with -100 for EEG tokens)
+                    if labels is not None:
+                        eeg_labels = torch.full(
+                            (eeg_embeds.shape[0], eeg_embeds.shape[1]), 
+                            -100, dtype=labels.dtype, device=labels.device
+                        )
+                        labels = torch.cat([eeg_labels, labels], dim=1)
                 else:
                     inputs_embeds = eeg_embeds
             else:
@@ -466,14 +479,27 @@ class BrainToTextLLM(PreTrainedModel):
 
             past_key_value = past_key_values[idx] if past_key_values is not None else None
 
-            layer_outputs = decoder_layer(
-                hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-            )
+            if self.gradient_checkpointing and self.training:
+                def create_custom_forward(module):
+                    def custom_forward(*inputs):
+                        return module(*inputs, past_key_value, output_attentions)
+                    return custom_forward
+
+                layer_outputs = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(decoder_layer),
+                    hidden_states,
+                    attention_mask,
+                    position_ids,
+                )
+            else:
+                layer_outputs = decoder_layer(
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    past_key_value=past_key_value,
+                    output_attentions=output_attentions,
+                    use_cache=use_cache,
+                )
 
             hidden_states = layer_outputs[0]
 

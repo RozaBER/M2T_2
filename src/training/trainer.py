@@ -40,6 +40,7 @@ class BrainToTextTrainer:
                  max_steps: Optional[int] = None,
                  num_epochs: Optional[int] = None,
                  warmup_steps: int = 1000,
+                 warmup_ratio: Optional[float] = None,
                  eval_metric: str = 'loss',
                  compute_generation_metrics: bool = False,
                  tokenizer = None):
@@ -85,6 +86,7 @@ class BrainToTextTrainer:
         self.max_steps = max_steps
         self.num_epochs = num_epochs
         self.warmup_steps = warmup_steps
+        self.warmup_ratio = warmup_ratio
         self.eval_metric = eval_metric
         self.compute_generation_metrics = compute_generation_metrics
         self.tokenizer = tokenizer
@@ -161,11 +163,18 @@ class BrainToTextTrainer:
         """Create default scheduler"""
         total_steps = self.max_steps or len(self.train_dataloader) * self.num_epochs
         
+        # Use warmup_ratio if provided, otherwise fall back to warmup_steps
+        if self.warmup_ratio is not None:
+            pct_start = min(1.0, max(0.0, self.warmup_ratio))
+        else:
+            # Ensure pct_start is between 0 and 1 when using fixed warmup_steps
+            pct_start = min(1.0, max(0.0, self.warmup_steps / total_steps))
+        
         return OneCycleLR(
             self.optimizer,
             max_lr=[1e-4, 5e-5, 1e-4],  # Match param groups
             total_steps=total_steps,
-            pct_start=self.warmup_steps / total_steps,
+            pct_start=pct_start,
             anneal_strategy='cos'
         )
     

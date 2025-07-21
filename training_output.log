@@ -1,0 +1,126 @@
+wandb: WARNING Unable to verify login in offline mode.
+panic: stream_init: failed to fetch credentials: api: couldn't get API key: settings: failed to get API key from netrc: open /home/zshao/.netrc: no such file or directory
+
+goroutine 15 [running]:
+github.com/wandb/wandb/core/internal/observability.(*CoreLogger).CaptureFatalAndPanic(...)
+	github.com/wandb/wandb/core/internal/observability/logging.go:126
+github.com/wandb/wandb/core/internal/stream.NewBackend(0xc000828018, 0xc00012a798)
+	github.com/wandb/wandb/core/internal/stream/stream_init.go:46 +0x1e7
+github.com/wandb/wandb/core/internal/stream.NewStream({{0x55fd14767620, 0x28}, 0xc00012a798, 0xc0000ac538, {0xc00005b800, 0x3c}, 0x0, 0xc00013f000})
+	github.com/wandb/wandb/core/internal/stream/stream.go:189 +0x213
+github.com/wandb/wandb/core/pkg/server.(*Connection).handleInformInit(0xc0005e55f0, 0xc000562e00)
+	github.com/wandb/wandb/core/pkg/server/connection.go:352 +0x2a8
+github.com/wandb/wandb/core/pkg/server.(*Connection).handleIncomingRequests(0xc0005e55f0)
+	github.com/wandb/wandb/core/pkg/server/connection.go:303 +0x339
+github.com/wandb/wandb/core/pkg/server.(*Connection).ManageConnectionData.func2()
+	github.com/wandb/wandb/core/pkg/server/connection.go:134 +0x47
+created by github.com/wandb/wandb/core/pkg/server.(*Connection).ManageConnectionData in goroutine 13
+	github.com/wandb/wandb/core/pkg/server/connection.go:132 +0x18b
+Setting up dataset...
+Train samples: 72
+Val samples: 8
+Setting up model...
+Total parameters: 473,038,720
+Trainable parameters: 117,641,088
+Starting optimized multi-phase training...
+Warning: EEG encoder doesn't support gradient checkpointing
+Warning: Failed to initialize wandb: 
+Continuing without wandb logging...
+Starting Optimized Multi-Phase Training
+
+=== Phase 1: Pre-training Encoder + RVQ with Reconstruction ===
+Phase 1: Encoder + RVQ:   0%|                        | 0/10000 [00:00<?, ?it/s]Traceback (most recent call last):
+  File "/scratch/M2T/B2T_2/train.py", line 256, in <module>
+    main()
+    ~~~~^^
+  File "/scratch/M2T/B2T_2/train.py", line 197, in main
+    trainer.train_all_phases()
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/scratch/M2T/B2T_2/src/training/multi_phase_trainer_optimized.py", line 156, in train_all_phases
+    self.train_phase1_encoder_rvq()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/scratch/M2T/B2T_2/src/training/multi_phase_trainer_optimized.py", line 198, in train_phase1_encoder_rvq
+    self._train_phase(
+    ~~~~~~~~~~~~~~~~~^
+        optimizer=optimizer,
+        ^^^^^^^^^^^^^^^^^^^^
+    ...<8 lines>...
+        }
+        ^
+    )
+    ^
+  File "/scratch/M2T/B2T_2/src/training/multi_phase_trainer_optimized.py", line 316, in _train_phase
+    outputs = self.model(**batch)
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/scratch/M2T/B2T_2/src/models/full_model.py", line 177, in forward
+    quantized_eeg, eeg_indices, vq_losses = self.encode_eeg(eeg_signals)
+                                            ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "/scratch/M2T/B2T_2/src/models/full_model.py", line 128, in encode_eeg
+    encoder_output = self.eeg_encoder(eeg_signals)
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/scratch/M2T/B2T_2/src/models/eeg_encoder.py", line 187, in forward
+    conv_out = self.conv_extractor(x)  # [batch, conv_channels, reduced_time]
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/scratch/M2T/B2T_2/src/models/eeg_encoder.py", line 56, in forward
+    return self.conv_layers(x)
+           ~~~~~~~~~~~~~~~~^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/container.py", line 240, in forward
+    input = module(input)
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/conv.py", line 375, in forward
+    return self._conv_forward(input, self.weight, self.bias)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/zshao/.conda/envs/m2t/lib/python3.13/site-packages/torch/nn/modules/conv.py", line 370, in _conv_forward
+    return F.conv1d(
+           ~~~~~~~~^
+        input, weight, bias, self.stride, self.padding, self.dilation, self.groups
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+RuntimeError: Input type (c10::Half) and bias type (float) should be the same
+=== Brain-to-Text Optimized Training ===
+Python: 3.13.5 | packaged by Anaconda, Inc. | (main, Jun 12 2025, 16:09:02) [GCC 11.2.0]
+Python executable: /home/zshao/.conda/envs/m2t/bin/python
+✓ torch is installed
+✓ transformers is installed
+✓ numpy is installed
+✓ pandas is installed
+✓ mne is installed
+✓ sklearn is installed
+✓ wandb is installed
+✓ tqdm is installed
+✓ yaml is installed
+
+✓ CUDA is available
+  - Number of GPUs: 2
+  - GPU 0: NVIDIA RTX A5500
+  - GPU 1: NVIDIA RTX A5500
+
+=== Starting Training ===
+Command: /home/zshao/.conda/envs/m2t/bin/python train.py --config configs/default_config.yaml --mode multi_phase --output_dir ./output/optimized_run --device cuda --wandb
+
+Training output:
+--------------------------------------------------
+
+=== Training Failed with exit code 1 ===

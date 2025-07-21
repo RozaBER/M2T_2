@@ -1,0 +1,111 @@
+{
+  "encoder_reconstruction": {
+    "avg_reconstruction_error": 0.04143863171339035,
+    "avg_vq_loss": 0.05699566751718521,
+    "codebook_utilization": {
+      "codebook_0": {
+        "utilized_codes": 1,
+        "total_codes": 8192,
+        "utilization_rate": 0.0001220703125
+      },
+      "codebook_1": {
+        "utilized_codes": 1,
+        "total_codes": 8192,
+        "utilization_rate": 0.0001220703125
+      },
+      "codebook_2": {
+        "utilized_codes": 1,
+        "total_codes": 8192,
+        "utilization_rate": 0.0001220703125
+      },
+      "codebook_3": {
+        "utilized_codes": 2,
+        "total_codes": 8192,
+        "utilization_rate": 0.000244140625
+      },
+      "codebook_4": {
+        "utilized_codes": 2,
+        "total_codes": 8192,
+        "utilization_rate": 0.000244140625
+      },
+      "codebook_5": {
+        "utilized_codes": 1,
+        "total_codes": 8192,
+        "utilization_rate": 0.0001220703125
+      },
+      "codebook_6": {
+        "utilized_codes": 2,
+        "total_codes": 8192,
+        "utilization_rate": 0.000244140625
+      },
+      "codebook_7": {
+        "utilized_codes": 2,
+        "total_codes": 8192,
+        "utilization_rate": 0.000244140625
+      }
+    }
+  },
+  "generation_quality": {
+    "rouge": {
+      "rouge-1": 0.14692982456140352,
+      "rouge-2": 0.11948529411764708,
+      "rouge-l": 0.14692982456140352,
+      "rouge-1-std": 0.19136834948113357,
+      "rouge-2-std": 0.15709116143733265,
+      "rouge-l-std": 0.19136834948113357
+    },
+    "bleu": {
+      "bleu-1": 0.3076923076923077,
+      "bleu-2": 0.25,
+      "bleu-3": 0.18181818181818182,
+      "bleu-4": 0.19338531381761725
+    },
+    "avg_generation_loss": 5.9486846923828125,
+    "num_samples_evaluated": 8,
+    "examples": [
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "The Black Willow Allan sat down"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "The Cable Fort by Bill Glover"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "The Black Willow Allan sat down"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "The Black Willow Allan sat down"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "The Cable Fort by Bill Glover"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "Easy Money by Bill Glover"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "Tara stood stock still waiting"
+      },
+      {
+        "prediction": " Initial Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Lolovsky0000000000000000 Emmanuel word Fort by Bill Glover",
+        "reference": "The Black Willow Allan sat down"
+      }
+    ]
+  },
+  "phase_specific": {
+    "phase1_encoder": {
+      "avg_encoding_norm": 27.65632438659668
+    },
+    "phase2_rvq": {
+      "avg_commitment_loss": 0.0
+    },
+    "phase3_e2e": {
+      "avg_total_loss": 5.9543843269348145
+    }
+  }
+}

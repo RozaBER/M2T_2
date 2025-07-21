@@ -13,7 +13,8 @@ from src.models.full_model import BrainToTextModel
 from src.data.meg_dataset import MEGDataset, MEGDataCollator
 from src.data.preprocessing import MEGPreprocessor
 from src.data.tokenizer import BrainToTextTokenizer
-from src.training.multi_phase_trainer import MultiPhaseTrainer
+from src.training.multi_phase_trainer_optimized import OptimizedMultiPhaseTrainer
+from src.data.augmentation import MEGAugmentation, AugmentedMEGDataset
 from src.training.trainer import BrainToTextTrainer
 from src.training.distillation import DistillationTrainer
 
@@ -38,6 +39,9 @@ def setup_dataset(config: dict):
     # Load tokenizer
     if config['tokenizer']['use_pretrained']:
         tokenizer = AutoTokenizer.from_pretrained(config['tokenizer']['model_name'])
+        # Set padding token if not already set
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
     else:
         tokenizer = BrainToTextTokenizer.from_pretrained(config['tokenizer']['path'])
     
@@ -60,6 +64,16 @@ def setup_dataset(config: dict):
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     
+    # Apply data augmentation to training set
+    if config['training'].get('use_augmentation', True):
+        augmentation = MEGAugmentation(
+            time_shift_range=0.1,  # ±100ms
+            channel_dropout_prob=0.1,
+            gaussian_noise_std=0.01,
+            apply_prob=0.5
+        )
+        train_dataset = AugmentedMEGDataset(train_dataset, augmentation)
+    
     # Create data collator
     collator = MEGDataCollator(tokenizer, max_length=config['model']['max_text_length'])
     
@@ -70,7 +84,8 @@ def setup_dataset(config: dict):
         shuffle=True,
         collate_fn=collator,
         num_workers=config['data']['num_workers'],
-        pin_memory=True
+        pin_memory=True,
+        drop_last=True  # Drop last batch for stable training
     )
     
     val_dataloader = DataLoader(
@@ -96,20 +111,13 @@ def setup_model(config: dict, tokenizer):
     # Create model configuration
     model_config = {
         'n_channels': config['model']['n_channels'],
-        'eeg_hidden_dim': config['model']['eeg_hidden_dim'],
-        'num_encoder_layers': config['model']['num_encoder_layers'],
-        'n_codebooks': config['model']['n_codebooks'],
+        'eeg_d_model': config['model']['eeg_hidden_dim'],
+        'eeg_n_layers': config['model']['num_encoder_layers'],
+        'num_quantizers': config['model']['n_codebooks'],
         'codebook_size': config['model']['codebook_size'],
-        'codebook_dim': config['model']['codebook_dim'],
-        'llm_model_name': config['model']['llm_model_name'],
         'vocab_size': vocab_size,
-        'freeze_llm_initially': config['model']['freeze_llm_initially'],
-        'use_lora': config['model']['use_lora'],
-        'lora_r': config['model'].get('lora_r', 8),
-        'lora_alpha': config['model'].get('lora_alpha', 16),
-        'lora_dropout': config['model'].get('lora_dropout', 0.1),
-        'dropout': config['model']['dropout'],
-        'max_seq_length': config['model']['max_seq_length']
+        'max_position_embeddings': config['model']['max_seq_length'],
+        'freeze_llm': config['model']['freeze_llm_initially']
     }
     
     # Initialize model
@@ -159,13 +167,17 @@ def main():
     # Setup model
     print("Setting up model...")
     model = setup_model(config, tokenizer)
+    
+    # Move model to device
+    model = model.to(args.device)
+    
     print(f"Total parameters: {model.get_num_params():,}")
     print(f"Trainable parameters: {model.get_num_params(only_trainable=True):,}")
     
     # Select training mode
     if args.mode == 'multi_phase':
-        print("Starting multi-phase training...")
-        trainer = MultiPhaseTrainer(
+        print("Starting optimized multi-phase training...")
+        trainer = OptimizedMultiPhaseTrainer(
             model=model,
             train_dataloader=train_dataloader,
             val_dataloader=val_dataloader,
@@ -174,7 +186,17 @@ def main():
             phase1_steps=config['training']['phase1_steps'],
             phase2_steps=config['training']['phase2_steps'],
             phase3_steps=config['training']['phase3_steps'],
-            log_wandb=args.wandb
+            num_epochs=config['training'].get('num_epochs'),
+            log_wandb=args.wandb,
+            warmup_ratio=config['training'].get('warmup_ratio', 0.1),
+            learning_rate=config['training']['learning_rate'],
+            weight_decay=config['training']['weight_decay'],
+            gradient_accumulation_steps=config['training']['accumulation_steps'],
+            fp16=config['training']['mixed_precision'],
+            gradient_checkpointing=config['training'].get('gradient_checkpointing', True),
+            save_steps=config['training']['save_steps'],
+            eval_steps=config['training']['eval_steps'],
+            logging_steps=config['training']['logging_steps']
         )
         trainer.train_all_phases()
         

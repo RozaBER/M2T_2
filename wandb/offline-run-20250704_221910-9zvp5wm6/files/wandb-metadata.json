@@ -1,0 +1,60 @@
+{
+  "os": "Linux-4.18.0-553.40.1.el8_10.x86_64-x86_64-with-glibc2.35",
+  "python": "CPython 3.13.5",
+  "startedAt": "2025-07-04T12:19:11.125378Z",
+  "args": [
+    "--config",
+    "configs/default_config.yaml",
+    "--mode",
+    "multi_phase",
+    "--output_dir",
+    "./output/optimized_run",
+    "--device",
+    "cuda",
+    "--wandb"
+  ],
+  "program": "/scratch/M2T/B2T_2/train.py",
+  "codePath": "train.py",
+  "git": {
+    "remote": "https://github.com/RozaBER/Large-Brain-to-Text-Model.git",
+    "commit": "93f61d63695374470726d83da2663922b4b4ae38"
+  },
+  "root": "/scratch/M2T/B2T_2",
+  "host": "venus2.ihpc.uts.edu.au",
+  "executable": "/home/zshao/.conda/envs/m2t/bin/python",
+  "codePathLocal": "train.py",
+  "cpu_count": 16,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA RTX A5500",
+  "gpu_count": 2,
+  "disk": {
+    "/": {
+      "total": "67108864",
+      "used": "12288"
+    }
+  },
+  "memory": {
+    "total": "134845894656"
+  },
+  "cpu": {
+    "count": 16,
+    "countLogical": 16
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA RTX A5500",
+      "memoryTotal": "25757220864",
+      "cudaCores": 10240,
+      "architecture": "Ampere",
+      "uuid": "GPU-9c4e79c5-7896-52dd-b8e7-af5516e0d453"
+    },
+    {
+      "name": "NVIDIA RTX A5500",
+      "memoryTotal": "25757220864",
+      "cudaCores": 10240,
+      "architecture": "Ampere",
+      "uuid": "GPU-b0bfa13c-5f2c-df27-4d07-7ac0c1eafaba"
+    }
+  ],
+  "cudaVersion": "12.8"
+}

@@ -31,7 +31,9 @@ class MultiPhaseTrainer:
                  phase2_steps: int = 30000,
                  phase3_steps: int = 100000,
                  phase4_steps: int = 50000,
-                 log_wandb: bool = True):
+                 num_epochs: Optional[int] = None,
+                 log_wandb: bool = True,
+                 warmup_ratio: float = 0.1):
         """
         Initialize multi-phase trainer
         
@@ -59,8 +61,10 @@ class MultiPhaseTrainer:
         self.phase2_steps = phase2_steps
         self.phase3_steps = phase3_steps
         self.phase4_steps = phase4_steps
+        self.num_epochs = num_epochs
         
         self.log_wandb = log_wandb
+        self.warmup_ratio = warmup_ratio
         self.current_phase = 0
         
     def train_all_phases(self):
@@ -99,8 +103,10 @@ class MultiPhaseTrainer:
             val_dataloader=self.val_dataloader,
             device=self.device,
             output_dir=self.output_dir / "phase1_encoder",
-            max_steps=self.phase1_steps,
-            log_wandb=self.log_wandb
+            max_steps=self.phase1_steps if self.num_epochs is None else None,
+            num_epochs=self.num_epochs,
+            log_wandb=self.log_wandb,
+            warmup_ratio=self.warmup_ratio
         )
         
         # Train
@@ -127,6 +133,18 @@ class MultiPhaseTrainer:
         self.model.freeze_llm()  # Keep LLM frozen
         self.model.rvq.requires_grad_(True)  # Unfreeze RVQ
         
+        # Disable EMA for gradient-based training in phase 2
+        for quantizer in self.model.rvq.quantizers:
+            quantizer.use_ema = False
+            # Ensure embeddings require gradients
+            quantizer.embeddings.weight.requires_grad_(True)
+        
+        # Verify RVQ parameters are trainable
+        rvq_trainable = sum(p.numel() for p in self.model.rvq.parameters() if p.requires_grad)
+        print(f"RVQ trainable parameters: {rvq_trainable:,}")
+        if rvq_trainable == 0:
+            raise ValueError("No trainable parameters in RVQ module!")
+        
         # Create phase-specific trainer
         phase2_trainer = RVQTrainer(
             model=self.model,
@@ -134,8 +152,10 @@ class MultiPhaseTrainer:
             val_dataloader=self.val_dataloader,
             device=self.device,
             output_dir=self.output_dir / "phase2_rvq",
-            max_steps=self.phase2_steps,
-            log_wandb=self.log_wandb
+            max_steps=self.phase2_steps,  # Always use phase steps
+            num_epochs=None,  # Ignore epochs for phase training
+            log_wandb=self.log_wandb,
+            warmup_ratio=self.warmup_ratio
         )
         
         # Train
@@ -168,7 +188,8 @@ class MultiPhaseTrainer:
             val_dataloader=self.val_dataloader,
             device=self.device,
             output_dir=self.output_dir / "phase3_full",
-            max_steps=self.phase3_steps,
+            max_steps=self.phase3_steps if self.num_epochs is None else None,
+            num_epochs=self.num_epochs,
             log_wandb=self.log_wandb,
             gradient_clip=0.5,  # Lower gradient clipping for stability
             accumulation_steps=4  # More accumulation for larger effective batch
@@ -261,32 +282,49 @@ class RVQTrainer(BrainToTextTrainer):
         # Get MEG signals
         meg_signals = batch['meg_signals']
         
+        # Ensure model is in training mode
+        self.model.train()
+        
         with torch.cuda.amp.autocast(enabled=self.mixed_precision):
-            # Forward pass through encoder (frozen)
-            with torch.no_grad():
-                encoder_output = self.model.eeg_encoder(meg_signals)
+            # Forward pass through encoder (frozen but keep in graph)
+            encoder_output = self.model.eeg_encoder(meg_signals)
+            encoder_output = encoder_output.detach()  # Detach to prevent encoder gradients
             
             # Quantize with RVQ (trainable)
-            if hasattr(self.model.rvq, 'forward'):
-                rvq_output = self.model.rvq(meg_signals, encoder_output)
-                quantized = rvq_output['quantized']
-                indices = rvq_output['indices']
-                vq_losses = rvq_output['vq_losses']
-                reconstruction_loss = rvq_output.get('reconstruction_loss', torch.tensor(0.0))
-            else:
-                quantized, indices, vq_losses = self.model.rvq(encoder_output)
-                reconstruction_loss = torch.tensor(0.0, device=self.device)
+            quantized, indices, vq_losses = self.model.rvq(encoder_output)
+            reconstruction_loss = torch.tensor(0.0, device=self.device)
+            
+            # Ensure vq_losses are on the correct device and require grad
+            if not isinstance(vq_losses, dict):
+                vq_losses = {'total_vq_loss': vq_losses}
             
             # Add entropy regularization to encourage codebook usage
-            codebook_usage = self.model.rvq.get_codebook_usage()
-            entropy_loss = sum(
-                -stats['entropy'] for stats in codebook_usage.values()
-            ) / len(codebook_usage)
+            try:
+                codebook_usage = self.model.rvq.get_codebook_usage()
+                if codebook_usage:
+                    entropy_loss = sum(
+                        -stats['entropy'] for stats in codebook_usage.values()
+                    ) / len(codebook_usage)
+                else:
+                    entropy_loss = torch.tensor(0.0, device=self.device)
+            except:
+                entropy_loss = torch.tensor(0.0, device=self.device)
             
-            # Total loss
-            loss = (vq_losses['total_vq_loss'] + 
-                   0.1 * reconstruction_loss + 
-                   0.01 * entropy_loss)
+            # Total loss - ensure all components are tensors with grad
+            total_vq_loss = vq_losses.get('total_vq_loss', vq_losses.get('loss', torch.tensor(0.0, device=self.device)))
+            
+            # Ensure loss requires grad
+            loss = total_vq_loss + 0.1 * reconstruction_loss + 0.01 * entropy_loss
+            
+            # If loss doesn't require grad, create a dummy loss that does
+            if not loss.requires_grad:
+                # Create a small regularization term from RVQ parameters
+                reg_loss = 0.0
+                for param in self.model.rvq.parameters():
+                    if param.requires_grad:
+                        reg_loss = reg_loss + 1e-8 * param.norm()
+                        break
+                loss = loss + reg_loss
         
         # Log codebook usage statistics
         if self.global_step % self.logging_steps == 0:

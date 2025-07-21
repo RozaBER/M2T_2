@@ -1,0 +1,84 @@
+data:
+  cache_dir: ./cache
+  data_root: /data/zshao/MASC-MEG
+  highpass: 0.1
+  lowpass: 100.0
+  normalize: true
+  num_workers: 4
+  overlap: 0.25
+  sampling_rate: 1000
+  segment_length: 2.0
+  sessions: null
+  subjects: null
+  tasks: null
+evaluation:
+  compute_generation_metrics: true
+  evaluation_frequency: 5
+  generation_params:
+    do_sample: false
+    early_stopping: true
+    max_length: 128
+    num_beams: 4
+    temperature: 0.7
+    top_p: 0.9
+  limit_eval_batches: null
+  metrics:
+  - rouge
+  - bleu
+  save_best_by_metric: gen_rouge-l
+inference:
+  do_sample: true
+  max_length: 256
+  num_beams: 1
+  temperature: 0.8
+  top_k: 50
+  top_p: 0.95
+model:
+  checkpoint_path: null
+  codebook_dim: 256
+  codebook_size: 8192
+  dropout: 0.3
+  eeg_hidden_dim: 768
+  freeze_llm_initially: true
+  llm_model_name: gpt2
+  lora_alpha: 16
+  lora_dropout: 0.2
+  lora_r: 8
+  max_seq_length: 2048
+  max_text_length: 256
+  n_channels: 208
+  n_codebooks: 8
+  num_encoder_layers: 12
+  use_lora: true
+tokenizer:
+  model_name: gpt2
+  use_pretrained: true
+training:
+  accumulation_steps: 4
+  backend: nccl
+  batch_size: 4
+  device: cuda
+  distill_alpha: 0.7
+  distill_temperature: 3.0
+  distributed: true
+  eval_steps: 5
+  find_unused_parameters: false
+  gradient_checkpointing: false
+  gradient_clip: 1.0
+  learning_rate: 0.0001
+  log_wandb: true
+  logging_steps: 1
+  max_steps: null
+  mixed_precision: true
+  num_epochs: 30
+  output_dir: ./output
+  phase1_steps: 10
+  phase2_steps: 5
+  phase3_steps: 10
+  phase4_steps: 10000
+  save_steps: 10
+  seed: 42
+  warmup_ratio: 0.1
+  warmup_steps: 2000
+  weight_decay: 0.01
+  world_size: 2

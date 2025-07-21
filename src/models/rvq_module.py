@@ -33,7 +33,7 @@ class VectorQuantizer(nn.Module):
             self.decay = decay
             self.epsilon = epsilon
             self.register_buffer('ema_cluster_size', torch.zeros(num_embeddings))
-            self.register_buffer('ema_w', self.embeddings.weight.data.clone())
+            self.register_buffer('ema_w', torch.zeros(embedding_dim, num_embeddings))
             self._ema_initted = False
         
     def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -105,7 +105,7 @@ class VectorQuantizer(nn.Module):
             self.ema_w.data.mul_(self.decay).add_(dw, alpha=1 - self.decay)
             
             self.embeddings.weight.data.copy_(
-                self.ema_w / self.ema_cluster_size.unsqueeze(1)
+                (self.ema_w / self.ema_cluster_size.unsqueeze(0)).t()
             )
 
 

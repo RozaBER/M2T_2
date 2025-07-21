@@ -41,7 +41,7 @@ class ConvFeatureExtractor(nn.Module):
             zip(conv_channels, kernel_sizes, strides)):
             layers.extend([
                 nn.Conv1d(in_channels, out_channels, kernel_size, 
-                         stride=stride, padding=kernel_size//2),
+                         stride=stride, padding=kernel_size//2, bias=False),  # Disable bias for BN
                 nn.BatchNorm1d(out_channels),
                 nn.ReLU(inplace=True),
                 nn.Dropout(dropout)
@@ -172,6 +172,17 @@ class EEGEncoder(nn.Module):
         # Layer normalization
         self.layer_norm = nn.LayerNorm(d_model)
         
+        # Gradient checkpointing support
+        self.gradient_checkpointing = False
+        
+    def gradient_checkpointing_enable(self):
+        """Enable gradient checkpointing for memory efficiency"""
+        self.gradient_checkpointing = True
+        
+    def gradient_checkpointing_disable(self):
+        """Disable gradient checkpointing"""
+        self.gradient_checkpointing = False
+        
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Forward pass of EEG encoder
@@ -199,11 +210,28 @@ class EEGEncoder(nn.Module):
         if self.use_moe:
             # Interleave transformer and MoE layers
             for i in range(len(self.transformer.layers)):
-                features = self.transformer.layers[i](features, src_key_padding_mask=mask)
+                if self.gradient_checkpointing and self.training:
+                    features = torch.utils.checkpoint.checkpoint(
+                        self.transformer.layers[i], features, src_key_padding_mask=mask
+                    )
+                else:
+                    features = self.transformer.layers[i](features, src_key_padding_mask=mask)
                 if i % 2 == 1 and i // 2 < len(self.moe_layers):
-                    features = self.moe_layers[i // 2](features)
+                    if self.gradient_checkpointing and self.training:
+                        features = torch.utils.checkpoint.checkpoint(
+                            self.moe_layers[i // 2], features
+                        )
+                    else:
+                        features = self.moe_layers[i // 2](features)
         else:
-            features = self.transformer(features, src_key_padding_mask=mask)
+            if self.gradient_checkpointing and self.training:
+                # Apply gradient checkpointing to transformer layers
+                for layer in self.transformer.layers:
+                    features = torch.utils.checkpoint.checkpoint(
+                        layer, features, src_key_padding_mask=mask
+                    )
+            else:
+                features = self.transformer(features, src_key_padding_mask=mask)
         
         # Final layer norm
         features = self.layer_norm(features)

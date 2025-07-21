@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from typing import Optional, Dict, Tuple, List
 from .eeg_encoder import EEGEncoder
-from .rvq_module import ResidualVectorQuantizer, RVQWithReconstruction
+from .rvq_module_optimized import OptimizedResidualVectorQuantizer, RVQWithReconstruction
 from .llm_decoder import BrainToTextLLM, BrainToTextConfig
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
@@ -54,8 +54,8 @@ class BrainToTextModel(nn.Module):
         self.segment_length = segment_length
         self.num_quantizers = num_quantizers
         self.codebook_size = codebook_size
-        self.freeze_encoder = freeze_encoder
-        self.freeze_llm = freeze_llm
+        self._freeze_encoder = freeze_encoder
+        self._freeze_llm = freeze_llm
         
         # Initialize EEG Encoder
         self.eeg_encoder = EEGEncoder(
@@ -81,7 +81,7 @@ class BrainToTextModel(nn.Module):
                 use_reconstruction=use_reconstruction
             )
         else:
-            self.rvq = ResidualVectorQuantizer(
+            self.rvq = OptimizedResidualVectorQuantizer(
                 embedding_dim=eeg_d_model,
                 num_quantizers=num_quantizers,
                 codebook_size=codebook_size,
@@ -189,12 +189,22 @@ class BrainToTextModel(nn.Module):
             return_dict=True
         )
         
-        # Combine losses
+        # Combine losses with optimized weights
         lm_loss = llm_output.loss if llm_output.loss is not None else torch.tensor(0.0)
         vq_loss = aux_losses.get('total_vq_loss', torch.tensor(0.0))
         recon_loss = aux_losses.get('reconstruction_loss', torch.tensor(0.0))
+        commitment_loss = aux_losses.get('commitment_loss', torch.tensor(0.0))
+        diversity_loss = aux_losses.get('diversity_loss', torch.tensor(0.0))
+        perplexity_loss = aux_losses.get('perplexity_loss', torch.tensor(0.0))
         
-        total_loss = lm_loss + 0.1 * vq_loss + 0.05 * recon_loss
+        # Optimized loss weighting
+        total_loss = (
+            1.0 * lm_loss +
+            0.5 * recon_loss +
+            0.2 * commitment_loss +
+            0.1 * diversity_loss +
+            0.05 * perplexity_loss
+        )
         
         if return_dict:
             return {
@@ -202,10 +212,14 @@ class BrainToTextModel(nn.Module):
                 'lm_loss': lm_loss,
                 'vq_loss': vq_loss,
                 'reconstruction_loss': recon_loss,
+                'commitment_loss': commitment_loss,
+                'diversity_loss': diversity_loss,
+                'perplexity_loss': perplexity_loss,
                 'logits': llm_output.logits,
                 'eeg_indices': eeg_indices,
                 'quantized_eeg': quantized_eeg,
-                'past_key_values': llm_output.past_key_values if use_cache else None
+                'past_key_values': llm_output.past_key_values if use_cache else None,
+                'aux_losses': aux_losses
             }
         else:
             return (total_loss, llm_output.logits, eeg_indices, quantized_eeg)
@@ -284,7 +298,21 @@ class BrainToTextModel(nn.Module):
         checkpoint = torch.load(os.path.join(model_path, 'model.pt'), map_location='cpu')
         config = checkpoint['config']
         
-        # Create model instance
+        # Extract all necessary config parameters
+        # Count encoder layers from state dict
+        encoder_state = checkpoint['eeg_encoder_state_dict']
+        encoder_layers = max([int(k.split('.')[2]) for k in encoder_state.keys() 
+                            if k.startswith('transformer.layers.')], default=5) + 1
+        
+        # Extract LLM config parameters
+        llm_config = config.get('llm_config', {})
+        vocab_size = llm_config.get('vocab_size', 32000)
+        llm_hidden_size = llm_config.get('hidden_size', 1024)
+        llm_intermediate_size = llm_config.get('intermediate_size', 4096)
+        llm_n_layers = llm_config.get('num_hidden_layers', 12)
+        llm_n_heads = llm_config.get('num_attention_heads', 16)
+        
+        # Create model instance with full config
         model = cls(
             n_channels=config['n_channels'],
             sampling_rate=config['sampling_rate'],
@@ -292,6 +320,12 @@ class BrainToTextModel(nn.Module):
             num_quantizers=config['num_quantizers'],
             codebook_size=config['codebook_size'],
             eeg_d_model=config['eeg_d_model'],
+            eeg_n_layers=encoder_layers,
+            vocab_size=vocab_size,
+            llm_hidden_size=llm_hidden_size,
+            llm_intermediate_size=llm_intermediate_size,
+            llm_n_layers=llm_n_layers,
+            llm_n_heads=llm_n_heads,
             **kwargs
         )
         
@@ -313,22 +347,22 @@ class BrainToTextModel(nn.Module):
         """Freeze EEG encoder parameters"""
         for param in self.eeg_encoder.parameters():
             param.requires_grad = False
-        self.freeze_encoder = True
+        self._freeze_encoder = True
     
     def unfreeze_encoder(self):
         """Unfreeze EEG encoder parameters"""
         for param in self.eeg_encoder.parameters():
             param.requires_grad = True
-        self.freeze_encoder = False
+        self._freeze_encoder = False
     
     def freeze_llm(self):
         """Freeze LLM decoder parameters"""
         for param in self.llm_decoder.parameters():
             param.requires_grad = False
-        self.freeze_llm = True
+        self._freeze_llm = True
     
     def unfreeze_llm(self):
         """Unfreeze LLM decoder parameters"""
         for param in self.llm_decoder.parameters():
             param.requires_grad = True
-        self.freeze_llm = False
+        self._freeze_llm = False

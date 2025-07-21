@@ -94,8 +94,8 @@ class MEGDataset(Dataset):
                 if not meg_dir.exists():
                     continue
                 
-                # Find MEG files
-                meg_files = list(meg_dir.glob('*_meg.fif'))
+                # Find MEG files (look for both .fif and .con formats)
+                meg_files = list(meg_dir.glob('*_meg.fif')) + list(meg_dir.glob('*_meg.con'))
                 
                 for meg_file in meg_files:
                     # Extract task info from filename
@@ -145,10 +145,16 @@ class MEGDataset(Dataset):
                 return data, self.sampling_rate
         
         # Load raw MEG data
-        raw = mne.io.read_raw_fif(meg_file, preload=True, verbose=False)
+        if meg_file.endswith('.fif'):
+            raw = mne.io.read_raw_fif(meg_file, preload=True, verbose=False)
+        elif meg_file.endswith('.con'):
+            # KIT/Yokogawa format
+            raw = mne.io.read_raw_kit(meg_file, preload=True, verbose=False)
+        else:
+            raise ValueError(f"Unsupported MEG file format: {meg_file}")
         
         # Pick MEG channels only
-        raw.pick_types(meg=True, eeg=False, stim=False, eog=False, ecg=False)
+        raw.pick(picks=['meg'], exclude=['stim', 'eog', 'ecg'])
         
         # Resample if needed
         if raw.info['sfreq'] != self.sampling_rate:
@@ -361,7 +367,7 @@ class MEGDataCollator:
             )
             
             return {
-                'meg_signals': meg_data,
+                'eeg_signals': meg_data,
                 'input_ids': encoded['input_ids'],
                 'attention_mask': encoded['attention_mask'],
                 'labels': encoded['input_ids'].clone()
@@ -369,6 +375,6 @@ class MEGDataCollator:
         else:
             # Return without tokenization
             return {
-                'meg_signals': meg_data,
+                'eeg_signals': meg_data,
                 'texts': texts
             }

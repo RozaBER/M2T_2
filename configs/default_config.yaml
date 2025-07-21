@@ -2,13 +2,13 @@
 
 # Data configuration
 data:
-  data_root: "\\\\wsl.localhost\\Ubuntu\\home\\bruce\\projects\\data\\MASC-MEG"
+  data_root: "/data/zshao/MASC-MEG"
   subjects: null  # null for all subjects, or list like ["sub-01", "sub-02"]
   sessions: null  # null for all sessions
   tasks: null     # null for all tasks, or list like [0, 1, 2, 3]
   sampling_rate: 1000
   segment_length: 2.0  # seconds
-  overlap: 0.5  # 50% overlap
+  overlap: 0.25  # 25% overlap
   lowpass: 100.0
   highpass: 0.1
   normalize: true
@@ -24,7 +24,7 @@ model:
   
   # RVQ configuration
   n_codebooks: 8
-  codebook_size: 8192
+  codebook_size: 1024  # Reduced from 8192 to avoid k-means issues
   codebook_dim: 256
   
   # LLM configuration
@@ -33,10 +33,10 @@ model:
   use_lora: true
   lora_r: 8
   lora_alpha: 16
-  lora_dropout: 0.1
+  lora_dropout: 0.2
   
   # General
-  dropout: 0.1
+  dropout: 0.3
   max_seq_length: 2048
   max_text_length: 256
   
@@ -51,24 +51,28 @@ tokenizer:
   # use_pretrained: false
   # path: "./tokenizer"
 
-# Training configuration
+# Training configuration - Optimized for 2x NVIDIA A5500 (24GB each)
 training:
   # Training mode specific
-  batch_size: 16
+  batch_size: 16  # 8 per GPU for better memory efficiency
   gradient_clip: 1.0
-  accumulation_steps: 4
-  mixed_precision: true
+  accumulation_steps: 4  # Effective batch size of 64
+  mixed_precision: false
+  gradient_checkpointing: false  # Disabled due to compatibility issues
   
   # Learning schedule
-  num_epochs: 10
+  num_epochs: 30
   max_steps: null  # Set to override num_epochs
-  warmup_steps: 1000
+  warmup_steps: 2000  # Extended warmup for stability
+  warmup_ratio: 0.1  # 10% of total steps
+  learning_rate: 0.0001
+  weight_decay: 0.01
   
   # Multi-phase training steps
-  phase1_steps: 50000
-  phase2_steps: 30000
-  phase3_steps: 100000
-  phase4_steps: 50000
+  phase1_steps: 10000  # Encoder + RVQ reconstruction
+  phase2_steps: 5000   # RVQ diversity training
+  phase3_steps: 20000  # End-to-end fine-tuning
+  phase4_steps: 10000  # Optional distillation
   
   # Distillation parameters
   distill_temperature: 3.0
@@ -77,12 +81,19 @@ training:
   # Checkpointing
   save_steps: 1000
   eval_steps: 500
-  logging_steps: 100
+  logging_steps: 10
   
   # Output
   output_dir: "./output"
   device: "cuda"
   log_wandb: true
+  seed: 42
+  
+  # Multi-GPU settings
+  distributed: true
+  world_size: 2
+  backend: "nccl"
+  find_unused_parameters: false
 
 # Evaluation configuration
 evaluation:
@@ -101,7 +112,7 @@ evaluation:
   
   evaluation_frequency: 5  # Evaluate every N epochs
   save_best_by_metric: "gen_rouge-l"  # Metric for model selection
-  limit_eval_batches: 10  # Limit batches for faster evaluation during training
+  limit_eval_batches: null  # Use all validation data (only 8 samples)
 
 # Inference configuration
 inference:

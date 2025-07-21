@@ -1,0 +1,1 @@
+python train.py --config configs/default_config.yaml --mode multi_phase --output_dir ./output --wandb
